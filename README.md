@@ -1,4 +1,4 @@
-cli v2 manual
+cli manual
 ===
 
 <!-- toc -->
