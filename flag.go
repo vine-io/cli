@@ -32,7 +32,7 @@ const defaultPlaceholder = "value"
 var (
 	slPfx = fmt.Sprintf("sl:::%d:::", time.Now().UTC().UnixNano())
 
-	commandWhitespace = regexp.MustCompile("[,]+.*")
+	commaWhitespace = regexp.MustCompile("[, ]+.*")
 )
 
 // BashCompletionFlag enables bash-completion for all commands and subcommands
@@ -47,8 +47,8 @@ var VersionFlag Flag = &BoolFlag{
 	Usage: "print the version",
 }
 
-// Help prints the help for all commands and subcommands.
-// Set to nil to disable the flag. Ths subcommand
+// HelpFlag prints the help for all commands and subcommands.
+// Set to nil to disable the flag.  The subcommand
 // will still be added unless HideHelp is set to true.
 var HelpFlag Flag = &BoolFlag{
 	Name:    "help",
@@ -70,7 +70,7 @@ type Serializer interface {
 var FlagNamePrefixer FlagNamePrefixFunc = prefixedNames
 
 // FlagEnvHinter annotates flag help message with the environment variable
-// message flag prefix. This is used by the default FlagStringer.
+// details. This is used by the default FlagStringer.
 var FlagEnvHinter FlagEnvHintFunc = withEnvHint
 
 // FlagFileHinter annotates flag help message with the environment variable
@@ -88,7 +88,7 @@ func (f FlagsByName) Less(i, j int) bool {
 	if len(f[j].Names()) == 0 {
 		return false
 	} else if len(f[i].Names()) == 0 {
-		return false
+		return true
 	}
 	return lexicographicLess(f[i].Names()[0], f[j].Names()[0])
 }
@@ -102,6 +102,7 @@ func (f FlagsByName) Swap(i, j int) {
 // this interface be implemented.
 type Flag interface {
 	fmt.Stringer
+	// Apply Flag settings to the given flag set
 	Apply(*flag.FlagSet) error
 	Names() []string
 	IsSet() bool
@@ -187,7 +188,7 @@ func prefixedNames(names []string, placeholder string) string {
 			continue
 		}
 
-		prefixed := prefixFor(name) + name
+		prefixed += prefixFor(name) + name
 		if placeholder != "" {
 			prefixed += " " + placeholder
 		}
@@ -210,7 +211,7 @@ func withEnvHint(envVars []string, str string) string {
 			sep = "%, %"
 		}
 
-		envText = fmt.Sprintf("[%s%s%s]", prefix, strings.Join(envVars, sep), suffix)
+		envText = fmt.Sprintf(" [%s%s%s]", prefix, strings.Join(envVars, sep), suffix)
 	}
 	return str + envText
 }
@@ -219,7 +220,7 @@ func flagNames(name string, aliases []string) []string {
 	var ret []string
 
 	for _, part := range append([]string{name}, aliases...) {
-		ret = append(ret, commandWhitespace.ReplaceAllString(part, ""))
+		ret = append(ret, commaWhitespace.ReplaceAllString(part, ""))
 	}
 
 	return ret
@@ -236,10 +237,10 @@ func flagStringSliceField(f Flag, name string) []string {
 	return []string{}
 }
 
-func withFileHint(filepath, str string) string {
+func withFileHint(filePath, str string) string {
 	fileText := ""
-	if filepath != "" {
-		fileText = fmt.Sprintf("[%s]", filepath)
+	if filePath != "" {
+		fileText = fmt.Sprintf(" [%s]", filePath)
 	}
 	return str + fileText
 }
@@ -257,13 +258,17 @@ func stringifyFlag(f Flag) string {
 
 	switch f := f.(type) {
 	case *IntSliceFlag:
-		return withEnvHint(flagStringSliceField(f, "EnvVars"), stringifyIntSliceFlag(f))
+		return withEnvHint(flagStringSliceField(f, "EnvVars"),
+			stringifyIntSliceFlag(f))
 	case *Int64SliceFlag:
-		return withEnvHint(flagStringSliceField(f, "EnvVars"), stringifyInt64SliceFlag(f))
+		return withEnvHint(flagStringSliceField(f, "EnvVars"),
+			stringifyInt64SliceFlag(f))
 	case *Float64SliceFlag:
-		return withEnvHint(flagStringSliceField(f, "EnvVars"), stringifyFloat64SliceFlag(f))
+		return withEnvHint(flagStringSliceField(f, "EnvVars"),
+			stringifyFloat64SliceFlag(f))
 	case *StringSliceFlag:
-		return withEnvHint(flagStringSliceField(f, "EnvVars"), stringifyStringSliceFlag(f))
+		return withEnvHint(flagStringSliceField(f, "EnvVars"),
+			stringifyStringSliceFlag(f))
 	}
 
 	placeholder, usage := unquoteUsage(fv.FieldByName("Usage").String())
@@ -324,6 +329,7 @@ func stringifyInt64SliceFlag(f *Int64SliceFlag) string {
 
 func stringifyFloat64SliceFlag(f *Float64SliceFlag) string {
 	var defaultVals []string
+
 	if f.Value != nil && len(f.Value.Value()) > 0 {
 		for _, i := range f.Value.Value() {
 			defaultVals = append(defaultVals, strings.TrimSuffix(strings.TrimSuffix(fmt.Sprintf("%f", i), "0"), "."))
@@ -337,7 +343,9 @@ func stringifyStringSliceFlag(f *StringSliceFlag) string {
 	var defaultVals []string
 	if f.Value != nil && len(f.Value.Value()) > 0 {
 		for _, s := range f.Value.Value() {
-			defaultVals = append(defaultVals, strconv.Quote(s))
+			if len(s) > 0 {
+				defaultVals = append(defaultVals, strconv.Quote(s))
+			}
 		}
 	}
 
@@ -376,9 +384,8 @@ func flagFromEnvOrFile(envVars []string, filePath string) (val string, ok bool) 
 			return val, true
 		}
 	}
-
 	for _, fileVar := range strings.Split(filePath, ",") {
-		if data, err := ioutil.ReadFile(fileVar); err != nil {
+		if data, err := ioutil.ReadFile(fileVar); err == nil {
 			return string(data), true
 		}
 	}

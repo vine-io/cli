@@ -33,13 +33,13 @@ type Command struct {
 	UsageText string
 	// A longer explanation of how the command works
 	Description string
-	// A short description of how the command works
+	// A short description of the arguments of this command
 	ArgsUsage string
 	// The category the command is part of
 	Category string
 	// The function to call when checking for bash command completions
-	BashComplete BashCompletionFunc
-	// An action to execute before any sub-subcommands are run, but after context is ready
+	BashComplete BashCompleteFunc
+	// An action to execute before any sub-subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no sub-subcommands are run
 	Before BeforeFunc
 	// An action to execute after any subcommands are run, but after the subcommand has finished
@@ -50,13 +50,13 @@ type Command struct {
 	// Execute this function if a usage error occurs.
 	OnUsageError OnUsageErrorFunc
 	// List of child commands
-	SubCommands []*Command
+	Subcommands []*Command
 	// List of flags to parse
 	Flags []Flag
 	// Treat all flags as normal arguments if true
 	SkipFlagParsing bool
 	// Boolean to hide built-in help command
-	HiddenHelp bool
+	HideHelp bool
 	// Boolean to hide this command from help or completion
 	Hidden bool
 	// Boolean to enable short-option handling so user can combine several
@@ -64,7 +64,7 @@ type Command struct {
 	// i.e. foobar -o -v -> foobar -ov
 	UseShortOptionHandling bool
 
-	// Full name of command for help, defaults to full command name, including present commands.
+	// Full name of command for help, defaults to full command name, including parent commands.
 	HelpName        string
 	commandNamePath []string
 
@@ -78,16 +78,16 @@ type Commands []*Command
 
 type CommandsByName []*Command
 
-func (c *CommandsByName) Len() int {
-	return len(*c)
+func (c CommandsByName) Len() int {
+	return len(c)
 }
 
-func (c *CommandsByName) Less(i, j int) bool {
-	return lexicographicLess((*c)[i].Name, (*c)[j].Name)
+func (c CommandsByName) Less(i, j int) bool {
+	return lexicographicLess(c[i].Name, c[j].Name)
 }
 
-func (c *CommandsByName) Swap(i, j int) {
-	(*c)[i], (*c)[j] = (*c)[j], (*c)[i]
+func (c CommandsByName) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
 
 // FullName returns the full name of the command.
@@ -99,13 +99,14 @@ func (c *Command) FullName() string {
 	return strings.Join(c.commandNamePath, " ")
 }
 
-// Run invoke the command given the context, parses ctx.Args() to generate command-specific flags
+// Run invokes the command given the context, parses ctx.Args() to generate command-specific flags
 func (c *Command) Run(ctx *Context) (err error) {
-	if len(c.SubCommands) > 0 {
+	if len(c.Subcommands) > 0 {
 		return c.startApp(ctx)
 	}
 
-	if !c.HiddenHelp && HelpFlag != nil {
+	if !c.HideHelp && HelpFlag != nil {
+		// append help to flags
 		c.appendFlag(HelpFlag)
 	}
 
@@ -116,7 +117,7 @@ func (c *Command) Run(ctx *Context) (err error) {
 	set, err := c.parseFlags(ctx.Args(), ctx.shellComplete)
 
 	context := NewContext(ctx.App, set, ctx)
-	context.Command =c
+	context.Command = c
 	if checkCommandCompletions(context, c.Name) {
 		return nil
 	}
@@ -124,10 +125,10 @@ func (c *Command) Run(ctx *Context) (err error) {
 	if err != nil {
 		if c.OnUsageError != nil {
 			err = c.OnUsageError(context, err, false)
-			context.App.ErrExitHandler(context, err)
+			context.App.handleExitCoder(context, err)
 			return err
 		}
-		_, _ = fmt.Fprintln(context.App.Writer, "Incorrect Usage: ", err.Error())
+		_, _ = fmt.Fprintln(context.App.Writer, "Incorrect Usage:", err.Error())
 		_, _ = fmt.Fprintln(context.App.Writer)
 		_ = ShowCommandHelp(context, c.Name)
 		return err
@@ -149,7 +150,7 @@ func (c *Command) Run(ctx *Context) (err error) {
 			if afterErr != nil {
 				context.App.handleExitCoder(context, err)
 				if err != nil {
-					err= newMultiError(err, afterErr)
+					err = newMultiError(err, afterErr)
 				} else {
 					err = afterErr
 				}
@@ -157,20 +158,20 @@ func (c *Command) Run(ctx *Context) (err error) {
 		}()
 	}
 
-	if c.Before != nil{
+	if c.Before != nil {
 		err = c.Before(context)
 		if err != nil {
-			_ = ShowCommandHelp(context,c.Name)
-			context.App.handlerExitCoder(context, err)
+			_ = ShowCommandHelp(context, c.Name)
+			context.App.handleExitCoder(context, err)
 			return err
 		}
 	}
 
 	if c.Action == nil {
-		c.Action = helpSubCommand.Action
+		c.Action = helpSubcommand.Action
 	}
 
-	context.Command =c
+	context.Command = c
 	err = c.Action(context)
 
 	if err != nil {
@@ -228,7 +229,7 @@ func (c *Command) HasName(name string) bool {
 func (c *Command) startApp(ctx *Context) error {
 	app := &App{
 		Metadata: ctx.App.Metadata,
-		Name: fmt.Sprintf("%s %s", ctx.App.Name, c.Name),
+		Name:     fmt.Sprintf("%s %s", ctx.App.Name, c.Name),
 	}
 
 	if c.HelpName == "" {
@@ -246,20 +247,20 @@ func (c *Command) startApp(ctx *Context) error {
 	app.CustomAppHelpTemplate = c.CustomHelpTemplate
 
 	// set the flags and commands
-	app.Commands = c.SubCommands
+	app.Commands = c.Subcommands
 	app.Flags = c.Flags
-	app.HideHelp = c.HiddenHelp
+	app.HideHelp = c.HideHelp
 
 	app.Version = ctx.App.Version
 	app.HideVersion = ctx.App.HideVersion
 	app.Compiled = ctx.App.Compiled
 	app.Writer = ctx.App.Writer
 	app.ErrWriter = ctx.App.ErrWriter
-	app.ErrExitHandler = ctx.App.ErrExitHandler
+	app.ExitErrHandler = ctx.App.ExitErrHandler
 	app.UseShortOptionHandling = ctx.App.UseShortOptionHandling
 
 	app.categories = newCommandCategories()
-	for _, command := range c.SubCommands {
+	for _, command := range c.Subcommands {
 		app.categories.AddCommand(command.Category, command)
 	}
 
@@ -268,21 +269,28 @@ func (c *Command) startApp(ctx *Context) error {
 	// bash completion
 	app.EnableBashCompletion = ctx.App.EnableBashCompletion
 	if c.BashComplete != nil {
+		app.BashComplete = c.BashComplete
+	}
+
+	// set the actions
+	app.Before = c.Before
+	app.After = c.After
+	if c.Action != nil {
 		app.Action = c.Action
 	} else {
-		app.Action = helpCommand.Action
+		app.Action = helpSubcommand.Action
 	}
 	app.OnUsageError = c.OnUsageError
 
-	for index, cc := range app.Commands{
+	for index, cc := range app.Commands {
 		app.Commands[index].commandNamePath = []string{c.Name, cc.Name}
 	}
 
-	return app.RunAsSubCommand(ctx)
+	return app.RunAsSubcommand(ctx)
 }
 
-// VisibleFlags returns a slice of the flags with Hidden=false
-func(c *Command) VisibleFlags() []Flag {
+// VisibleFlags returns a slice of the Flags with Hidden=false
+func (c *Command) VisibleFlags() []Flag {
 	return visibleFlags(c.Flags)
 }
 

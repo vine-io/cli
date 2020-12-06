@@ -88,6 +88,5 @@ func (c *commandCategory) VisibleCommands() []*Command {
 			ret = append(ret, command)
 		}
 	}
-
 	return ret
 }

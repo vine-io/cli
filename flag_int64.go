@@ -20,7 +20,7 @@ import (
 	"strconv"
 )
 
-// Int64Flag is a flag with type bool
+// Int64Flag is a flag with type int64
 type Int64Flag struct {
 	Name        string
 	Aliases     []string
@@ -56,7 +56,7 @@ func (f *Int64Flag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *Int64Flag) TakesValue() bool {
 	return true
 }
@@ -69,20 +69,20 @@ func (f *Int64Flag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *Int64Flag) GetValue() string {
-	return ""
+	return fmt.Sprintf("%d", f.Value)
 }
 
 // Apply populates the flag given the flag set and environment
 func (f *Int64Flag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
 		if val != "" {
-			valInt64, err := strconv.ParseInt(val, 10, 64)
+			valInt, err := strconv.ParseInt(val, 0, 64)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as int value for flag %s: %v", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as int value for flag %s: %s", val, f.Name, err)
 			}
 
-			f.Value = valInt64
+			f.Value = valInt
 			f.HasBeenSet = true
 		}
 	}
@@ -94,27 +94,26 @@ func (f *Int64Flag) Apply(set *flag.FlagSet) error {
 		}
 		set.Int64(name, f.Value, f.Usage)
 	}
-
 	return nil
 }
 
 // Int64 looks up the value of a local Int64Flag, returns
 // 0 if not found
-func (c *Context) Int64(name string) int {
+func (c *Context) Int64(name string) int64 {
 	if fs := lookupFlagSet(name, c); fs != nil {
 		return lookupInt64(name, fs)
 	}
 	return 0
 }
 
-func lookupInt64(name string, set *flag.FlagSet) int {
+func lookupInt64(name string, set *flag.FlagSet) int64 {
 	f := set.Lookup(name)
 	if f != nil {
-		parsed, err := strconv.ParseInt(f.Value.String(), 10, 64)
+		parsed, err := strconv.ParseInt(f.Value.String(), 0, 64)
 		if err != nil {
 			return 0
 		}
-		return int(parsed)
+		return parsed
 	}
 	return 0
 }

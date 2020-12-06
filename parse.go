@@ -41,7 +41,7 @@ func parseIter(set *flag.FlagSet, ip iterativeParser, args []string, shellComple
 		}
 
 		errStr := err.Error()
-		trimmed := strings.TrimPrefix(errStr, "flag provided but not default: -")
+		trimmed := strings.TrimPrefix(errStr, "flag provided but not defined: -")
 		if errStr == trimmed {
 			return err
 		}
@@ -82,7 +82,7 @@ func parseIter(set *flag.FlagSet, ip iterativeParser, args []string, shellComple
 }
 
 func splitShortOptions(set *flag.FlagSet, arg string) []string {
-	shortFlagsExists := func(s string) bool {
+	shortFlagsExist := func(s string) bool {
 		for _, c := range s[1:] {
 			if f := set.Lookup(string(c)); f == nil {
 				return false
@@ -91,7 +91,7 @@ func splitShortOptions(set *flag.FlagSet, arg string) []string {
 		return true
 	}
 
-	if !isSplittable(arg) || !shortFlagsExists(arg) {
+	if !isSplittable(arg) || !shortFlagsExist(arg) {
 		return []string{arg}
 	}
 

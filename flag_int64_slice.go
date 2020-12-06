@@ -28,55 +28,57 @@ type Int64Slice struct {
 	hasBeenSet bool
 }
 
-// NewInt64Slice makes a *Int64Slice with default values
+// NewInt64Slice makes an *Int64Slice with default values
 func NewInt64Slice(defaults ...int64) *Int64Slice {
 	return &Int64Slice{slice: append([]int64{}, defaults...)}
 }
 
-// Set parses the value into a int64 and appends it to the list of values
-func (f *Int64Slice) Set(value string) error {
-	if !f.hasBeenSet {
-		f.slice = []int64{}
-		f.hasBeenSet = true
+// Set parses the value into an integer and appends it to the list of values
+func (i *Int64Slice) Set(value string) error {
+	if !i.hasBeenSet {
+		i.slice = []int64{}
+		i.hasBeenSet = true
 	}
 
 	if strings.HasPrefix(value, slPfx) {
 		// Deserializing assumes overwrite
-		_ = json.Unmarshal([]byte(strings.Replace(value, slPfx, "", 1)), &f.slice)
-		f.hasBeenSet = true
+		_ = json.Unmarshal([]byte(strings.Replace(value, slPfx, "", 1)), &i.slice)
+		i.hasBeenSet = true
 		return nil
 	}
 
-	tmp, err := strconv.ParseInt(value, 10,64)
+	tmp, err := strconv.ParseInt(value, 0, 64)
 	if err != nil {
 		return err
 	}
-	f.slice = append(f.slice, int64(tmp))
+
+	i.slice = append(i.slice, tmp)
+
 	return nil
 }
 
 // String returns a readable representation of this value (for usage defaults)
-func (f *Int64Slice) String() string {
-	return fmt.Sprintf("%#v", f.slice)
+func (i *Int64Slice) String() string {
+	return fmt.Sprintf("%#v", i.slice)
 }
 
 // Serialize allows Int64Slice to fulfill Serializer
-func (f *Int64Slice) Serialize() string {
-	jsonBytes, _ := json.Marshal(f.slice)
+func (i *Int64Slice) Serialize() string {
+	jsonBytes, _ := json.Marshal(i.slice)
 	return fmt.Sprintf("%s%s", slPfx, string(jsonBytes))
 }
 
-// Value returns the slice of []int64 set by this flag
-func (f *Int64Slice) Value() []int64 {
-	return f.slice
+// Value returns the slice of ints set by this flag
+func (i *Int64Slice) Value() []int64 {
+	return i.slice
 }
 
-// Get returns the slice of []int64 set by this flag
-func (f *Int64Slice) Get() interface{} {
-	return *f
+// Get returns the slice of ints set by this flag
+func (i *Int64Slice) Get() interface{} {
+	return *i
 }
 
-// Int64SliceFlag is a flag with type bool
+// Int64SliceFlag is a flag with type *Int64Slice
 type Int64SliceFlag struct {
 	Name        string
 	Aliases     []string
@@ -111,40 +113,41 @@ func (f *Int64SliceFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *Int64SliceFlag) TakesValue() bool {
 	return true
 }
 
 // GetUsage returns the usage string for the flag
-func (f *Int64SliceFlag) GetUsage() string {
+func (f Int64SliceFlag) GetUsage() string {
 	return f.Usage
 }
 
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *Int64SliceFlag) GetValue() string {
+	if f.Value != nil {
+		return f.Value.String()
+	}
 	return ""
 }
 
 // Apply populates the flag given the flag set and environment
 func (f *Int64SliceFlag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
-		if val != "" {
-			f.Value = &Int64Slice{}
+		f.Value = &Int64Slice{}
 
-			for _, s := range strings.Split(val, ",") {
-				if err := f.Value.Set(strings.TrimSpace(s)); err != nil {
-					return fmt.Errorf("could not parse %q as int64 slice value for flag %s: %v", val, f.Name, err)
-				}
+		for _, s := range strings.Split(val, ",") {
+			if err := f.Value.Set(strings.TrimSpace(s)); err != nil {
+				return fmt.Errorf("could not parse %q as int64 slice value for flag %s: %s", val, f.Name, err)
 			}
-
-			f.HasBeenSet = true
 		}
+
+		f.HasBeenSet = true
 	}
 
 	for _, name := range f.Names() {
-		if f.Value != nil {
+		if f.Value == nil {
 			f.Value = &Int64Slice{}
 		}
 		set.Var(f.Value, name, f.Usage)
@@ -156,10 +159,7 @@ func (f *Int64SliceFlag) Apply(set *flag.FlagSet) error {
 // Int64Slice looks up the value of a local Int64SliceFlag, returns
 // nil if not found
 func (c *Context) Int64Slice(name string) []int64 {
-	if fs := lookupFlagSet(name, c); fs != nil {
-		return lookupInt64Slice(name, fs)
-	}
-	return nil
+	return lookupInt64Slice(name, c.flagSet)
 }
 
 func lookupInt64Slice(name string, set *flag.FlagSet) []int64 {

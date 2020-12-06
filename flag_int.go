@@ -20,7 +20,7 @@ import (
 	"strconv"
 )
 
-// IntFlag is a flag with type bool
+// IntFlag is a flag with type int
 type IntFlag struct {
 	Name        string
 	Aliases     []string
@@ -56,7 +56,7 @@ func (f *IntFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *IntFlag) TakesValue() bool {
 	return true
 }
@@ -69,17 +69,17 @@ func (f *IntFlag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *IntFlag) GetValue() string {
-	return ""
+	return fmt.Sprintf("%d", f.Value)
 }
 
 // Apply populates the flag given the flag set and environment
 func (f *IntFlag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
 		if val != "" {
-			valInt, err := strconv.ParseInt(val, 10, 64)
+			valInt, err := strconv.ParseInt(val, 0, 64)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as int value for flag %s: %v", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as int value for flag %s: %s", val, f.Name, err)
 			}
 
 			f.Value = int(valInt)
@@ -110,7 +110,7 @@ func (c *Context) Int(name string) int {
 func lookupInt(name string, set *flag.FlagSet) int {
 	f := set.Lookup(name)
 	if f != nil {
-		parsed, err := strconv.ParseInt(f.Value.String(), 10, 64)
+		parsed, err := strconv.ParseInt(f.Value.String(), 0, 64)
 		if err != nil {
 			return 0
 		}

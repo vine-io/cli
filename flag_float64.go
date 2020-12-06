@@ -20,7 +20,7 @@ import (
 	"strconv"
 )
 
-// Float64Flag is a flag with type bool
+// Float64Flag is a flag with type float64
 type Float64Flag struct {
 	Name        string
 	Aliases     []string
@@ -56,9 +56,9 @@ func (f *Float64Flag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *Float64Flag) TakesValue() bool {
-	return false
+	return true
 }
 
 // GetUsage returns the usage string for the flag
@@ -69,17 +69,17 @@ func (f *Float64Flag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *Float64Flag) GetValue() string {
-	return ""
+	return fmt.Sprintf("%f", f.Value)
 }
 
 // Apply populates the flag given the flag set and environment
 func (f *Float64Flag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
 		if val != "" {
-			valFloat, err := strconv.ParseFloat(val, 64)
+			valFloat, err := strconv.ParseFloat(val, 10)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as float64 value for flag %s: %v", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as float64 value for flag %s: %s", val, f.Name, err)
 			}
 
 			f.Value = valFloat

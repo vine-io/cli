@@ -56,7 +56,7 @@ func (f *BoolFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *BoolFlag) TakesValue() bool {
 	return false
 }
@@ -79,7 +79,7 @@ func (f *BoolFlag) Apply(set *flag.FlagSet) error {
 			valBool, err := strconv.ParseBool(val)
 
 			if err != nil {
-				return fmt.Errorf("could not parse %q as bool value for flag %s: %v", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as bool value for flag %s: %s", val, f.Name, err)
 			}
 
 			f.Value = valBool

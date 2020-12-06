@@ -51,6 +51,7 @@ func (f *Float64Slice) Set(value string) error {
 	if err != nil {
 		return err
 	}
+
 	f.slice = append(f.slice, tmp)
 	return nil
 }
@@ -71,12 +72,12 @@ func (f *Float64Slice) Value() []float64 {
 	return f.slice
 }
 
-// Get returns the slice of float64 set by this flag
+// Get returns the slice of float64s set by this flag
 func (f *Float64Slice) Get() interface{} {
 	return *f
 }
 
-// Float64SliceFlag is a flag with type bool
+// Float64SliceFlag is a flag with type *Float64Slice
 type Float64SliceFlag struct {
 	Name        string
 	Aliases     []string
@@ -111,9 +112,9 @@ func (f *Float64SliceFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true if the flag takes a value, otherwise false
 func (f *Float64SliceFlag) TakesValue() bool {
-	return false
+	return true
 }
 
 // GetUsage returns the usage string for the flag
@@ -124,6 +125,9 @@ func (f *Float64SliceFlag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *Float64SliceFlag) GetValue() string {
+	if f.Value != nil {
+		return f.Value.String()
+	}
 	return ""
 }
 
@@ -135,7 +139,7 @@ func (f *Float64SliceFlag) Apply(set *flag.FlagSet) error {
 
 			for _, s := range strings.Split(val, ",") {
 				if err := f.Value.Set(strings.TrimSpace(s)); err != nil {
-					return fmt.Errorf("could not parse %q as float64 slice value for flag %s: %v", val, f.Name, err)
+					return fmt.Errorf("could not parse %q as float64 slice value for flag %s: %s", f.Value, f.Name, err)
 				}
 			}
 
@@ -144,7 +148,7 @@ func (f *Float64SliceFlag) Apply(set *flag.FlagSet) error {
 	}
 
 	for _, name := range f.Names() {
-		if f.Value != nil {
+		if f.Value == nil {
 			f.Value = &Float64Slice{}
 		}
 		set.Var(f.Value, name, f.Usage)

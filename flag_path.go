@@ -14,11 +14,8 @@
 
 package cli
 
-import (
-	"flag"
-)
+import "flag"
 
-// PathFlag is a flag with type bool
 type PathFlag struct {
 	Name        string
 	Aliases     []string
@@ -27,6 +24,7 @@ type PathFlag struct {
 	FilePath    string
 	Required    bool
 	Hidden      bool
+	TakesFile   bool
 	Value       string
 	DefaultText string
 	Destination *string
@@ -38,7 +36,7 @@ func (f *PathFlag) IsSet() bool {
 	return f.HasBeenSet
 }
 
-// Path returns a readable representation of this value
+// String returns a readable representation of this value
 // (for usage defaults)
 func (f *PathFlag) String() string {
 	return FlagStringer(f)
@@ -54,9 +52,9 @@ func (f *PathFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *PathFlag) TakesValue() bool {
-	return false
+	return true
 }
 
 // GetUsage returns the usage string for the flag
@@ -67,7 +65,7 @@ func (f *PathFlag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *PathFlag) GetValue() string {
-	return ""
+	return f.Value
 }
 
 // Apply populates the flag given the flag set and environment
@@ -94,6 +92,7 @@ func (c *Context) Path(name string) string {
 	if fs := lookupFlagSet(name, c); fs != nil {
 		return lookupPath(name, fs)
 	}
+
 	return ""
 }
 

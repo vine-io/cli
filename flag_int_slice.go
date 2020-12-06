@@ -28,55 +28,68 @@ type IntSlice struct {
 	hasBeenSet bool
 }
 
-// NewIntSlice makes a *IntSlice with default values
+// NewIntSlice makes an *IntSlice with default values
 func NewIntSlice(defaults ...int) *IntSlice {
 	return &IntSlice{slice: append([]int{}, defaults...)}
 }
 
-// Set parses the value into a int and appends it to the list of values
-func (f *IntSlice) Set(value string) error {
-	if !f.hasBeenSet {
-		f.slice = []int{}
-		f.hasBeenSet = true
+// TODO: Consistently have specific Set function for Int64 and Float64 ?
+// SetInt directly adds an integer to the list of values
+func (i *IntSlice) SetInt(value int) {
+	if !i.hasBeenSet {
+		i.slice = []int{}
+		i.hasBeenSet = true
+	}
+
+	i.slice = append(i.slice, value)
+}
+
+// Set parses the value into an integer and appends it to the list of values
+func (i *IntSlice) Set(value string) error {
+	if !i.hasBeenSet {
+		i.slice = []int{}
+		i.hasBeenSet = true
 	}
 
 	if strings.HasPrefix(value, slPfx) {
 		// Deserializing assumes overwrite
-		_ = json.Unmarshal([]byte(strings.Replace(value, slPfx, "", 1)), &f.slice)
-		f.hasBeenSet = true
+		_ = json.Unmarshal([]byte(strings.Replace(value, slPfx, "", 1)), &i.slice)
+		i.hasBeenSet = true
 		return nil
 	}
 
-	tmp, err := strconv.ParseInt(value, 10,64)
+	tmp, err := strconv.ParseInt(value, 0, 64)
 	if err != nil {
 		return err
 	}
-	f.slice = append(f.slice, int(tmp))
+
+	i.slice = append(i.slice, int(tmp))
+
 	return nil
 }
 
 // String returns a readable representation of this value (for usage defaults)
-func (f *IntSlice) String() string {
-	return fmt.Sprintf("%#v", f.slice)
+func (i *IntSlice) String() string {
+	return fmt.Sprintf("%#v", i.slice)
 }
 
 // Serialize allows IntSlice to fulfill Serializer
-func (f *IntSlice) Serialize() string {
-	jsonBytes, _ := json.Marshal(f.slice)
+func (i *IntSlice) Serialize() string {
+	jsonBytes, _ := json.Marshal(i.slice)
 	return fmt.Sprintf("%s%s", slPfx, string(jsonBytes))
 }
 
-// Value returns the slice of []int set by this flag
-func (f *IntSlice) Value() []int {
-	return f.slice
+// Value returns the slice of ints set by this flag
+func (i *IntSlice) Value() []int {
+	return i.slice
 }
 
-// Get returns the slice of []int set by this flag
-func (f *IntSlice) Get() interface{} {
-	return *f
+// Get returns the slice of ints set by this flag
+func (i *IntSlice) Get() interface{} {
+	return *i
 }
 
-// IntSliceFlag is a flag with type bool
+// IntSliceFlag is a flag with type *IntSlice
 type IntSliceFlag struct {
 	Name        string
 	Aliases     []string
@@ -111,40 +124,41 @@ func (f *IntSliceFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *IntSliceFlag) TakesValue() bool {
 	return true
 }
 
 // GetUsage returns the usage string for the flag
-func (f *IntSliceFlag) GetUsage() string {
+func (f IntSliceFlag) GetUsage() string {
 	return f.Usage
 }
 
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *IntSliceFlag) GetValue() string {
+	if f.Value != nil {
+		return f.Value.String()
+	}
 	return ""
 }
 
 // Apply populates the flag given the flag set and environment
 func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
-		if val != "" {
-			f.Value = &IntSlice{}
+		f.Value = &IntSlice{}
 
-			for _, s := range strings.Split(val, ",") {
-				if err := f.Value.Set(strings.TrimSpace(s)); err != nil {
-					return fmt.Errorf("could not parse %q as int slice value for flag %s: %v", val, f.Name, err)
-				}
+		for _, s := range strings.Split(val, ",") {
+			if err := f.Value.Set(strings.TrimSpace(s)); err != nil {
+				return fmt.Errorf("could not parse %q as int slice value for flag %s: %s", val, f.Name, err)
 			}
-
-			f.HasBeenSet = true
 		}
+
+		f.HasBeenSet = true
 	}
 
 	for _, name := range f.Names() {
-		if f.Value != nil {
+		if f.Value == nil {
 			f.Value = &IntSlice{}
 		}
 		set.Var(f.Value, name, f.Usage)
@@ -157,7 +171,7 @@ func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 // nil if not found
 func (c *Context) IntSlice(name string) []int {
 	if fs := lookupFlagSet(name, c); fs != nil {
-		return lookupIntSlice(name, fs)
+		return lookupIntSlice(name, c.flagSet)
 	}
 	return nil
 }

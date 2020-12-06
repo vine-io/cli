@@ -14,7 +14,6 @@
 
 package cli
 
-
 // AppHelpTemplate is the text template for the Default help topic.
 // cli.go uses text/template to render templates. You can
 // render custom help text by setting this variable.

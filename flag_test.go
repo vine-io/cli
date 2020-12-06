@@ -744,7 +744,7 @@ var float64SliceFlagTests = []struct {
 	{"heads", nil, NewFloat64Slice(), "--heads value\t"},
 	{"H", nil, NewFloat64Slice(), "-H value\t"},
 	{"heads", []string{"H"}, NewFloat64Slice(0.1234, -10.5),
-		"--heads value, -H value\t(default: 0.1234, -10.5)"},
+		"--heads value, -H value\t(default: 0.12340, -10.50000)"},
 }
 
 func TestFloat64SliceFlagHelpOutput(t *testing.T) {

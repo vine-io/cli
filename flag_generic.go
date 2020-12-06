@@ -25,7 +25,7 @@ type Generic interface {
 	String() string
 }
 
-// GenericFlag is a flag with type bool
+// GenericFlag is a flag with type Generic
 type GenericFlag struct {
 	Name        string
 	Aliases     []string
@@ -34,6 +34,7 @@ type GenericFlag struct {
 	FilePath    string
 	Required    bool
 	Hidden      bool
+	TakesFile   bool
 	Value       Generic
 	DefaultText string
 	HasBeenSet  bool
@@ -60,9 +61,9 @@ func (f *GenericFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *GenericFlag) TakesValue() bool {
-	return false
+	return true
 }
 
 // GetUsage returns the usage string for the flag
@@ -73,15 +74,19 @@ func (f *GenericFlag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *GenericFlag) GetValue() string {
+	if f.Value != nil {
+		return f.Value.String()
+	}
 	return ""
 }
 
-// Apply populates the flag given the flag set and environment
-func (f *GenericFlag) Apply(set *flag.FlagSet) error {
+// Apply takes the flagset and calls Set on the generic flag with the value
+// provided by the user for parsing by the flag
+func (f GenericFlag) Apply(set *flag.FlagSet) error {
 	if val, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok {
 		if val != "" {
-			if err:= f.Value.Set(val); err != nil {
-				return fmt.Errorf("could not parse %q as value for flag %s: %v", val, f.Name, err)
+			if err := f.Value.Set(val); err != nil {
+				return fmt.Errorf("could not parse %q as value for flag %s: %s", val, f.Name, err)
 			}
 
 			f.HasBeenSet = true
@@ -109,9 +114,9 @@ func lookupGeneric(name string, set *flag.FlagSet) interface{} {
 	if f != nil {
 		parsed, err := f.Value, error(nil)
 		if err != nil {
-			return false
+			return nil
 		}
 		return parsed
 	}
-	return false
+	return nil
 }

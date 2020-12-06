@@ -43,10 +43,10 @@ var helpCommand = &Command{
 	},
 }
 
-var helpSubCommand = &Command{
-	Name: "help",
-	Aliases: []string{"h"},
-	Usage: "Show a list of commands or help one command",
+var helpSubcommand = &Command{
+	Name:      "help",
+	Aliases:   []string{"h"},
+	Usage:     "Shows a list of commands or help for one command",
 	ArgsUsage: "[command]",
 	Action: func(c *Context) error {
 		args := c.Args()
@@ -56,7 +56,7 @@ var helpSubCommand = &Command{
 			return nil
 		}
 
-		_ = ShowSubcommmandHelp(c)
+		_ = ShowSubcommandHelp(c)
 		os.Exit(0)
 		return nil
 	},
@@ -113,7 +113,7 @@ func ShowAppHelp(c *Context) error {
 	return nil
 }
 
-// DefaultAppComplete prints the list of subcommands as the default app complete method
+// DefaultAppComplete prints the list of subcommands as the default app completion method
 func DefaultAppComplete(c *Context) {
 	DefaultCompleteWithFlags(nil)(c)
 }
@@ -164,7 +164,7 @@ func printFlagSuggestions(lastArg string, flags []Flag, writer io.Writer) {
 			// this will get total count utf8 letters in flag name
 			count := utf8.RuneCountInString(name)
 			if count > 2 {
-				count = 2
+				count = 2 // resuse this count to generate single - or -- in flag completion
 			}
 			// if flag name has more than one utf8 letter and last argument in cli has -- prefix then
 			// skip flag completion for short flags example -v or -x
@@ -193,15 +193,15 @@ func DefaultCompleteWithFlags(cmd *Command) func(c *Context) {
 			}
 		}
 		if cmd != nil {
-			printCommandSuggestions(cmd.SubCommands, c.App.Writer)
+			printCommandSuggestions(cmd.Subcommands, c.App.Writer)
 		} else {
 			printCommandSuggestions(c.App.Commands, c.App.Writer)
 		}
 	}
 }
 
-// ShowCommandHelpAndExit - exists with code after showing help
-func ShowCommandHelpAntExit(c *Context, command string, code int) {
+// ShowCommandHelpAndExit - exits with code after showing help
+func ShowCommandHelpAndExit(c *Context, command string, code int) {
 	_ = ShowCommandHelp(c, command)
 	os.Exit(code)
 }
@@ -236,7 +236,7 @@ func ShowCommandHelp(ctx *Context, command string) error {
 }
 
 // ShowSubcommandHelp prints help for the given subcommand
-func ShowSubcommmandHelp(c *Context) error {
+func ShowSubcommandHelp(c *Context) error {
 	if c == nil {
 		return nil
 	}
@@ -265,9 +265,9 @@ func ShowCompletions(c *Context) {
 	}
 }
 
-// ShowCommandCompletions prints the custom completions for a given commmand
+// ShowCommandCompletions prints the custom completions for a given command
 func ShowCommandCompletions(ctx *Context, command string) {
-	c := ctx.App.Commands(command)
+	c := ctx.App.Command(command)
 	if c != nil {
 		if c.BashComplete != nil {
 			c.BashComplete(ctx)
@@ -275,6 +275,7 @@ func ShowCommandCompletions(ctx *Context, command string) {
 			DefaultCompleteWithFlags(c)(ctx)
 		}
 	}
+
 }
 
 // printHelpCustom is the default implementation of HelpPrinterCustom.
@@ -308,6 +309,16 @@ func printHelp(out io.Writer, templ string, data interface{}) {
 	HelpPrinterCustom(out, templ, data, nil)
 }
 
+func checkVersion(c *Context) bool {
+	found := false
+	for _, name := range VersionFlag.Names() {
+		if c.Bool(name) {
+			found = true
+		}
+	}
+	return found
+}
+
 func checkHelp(c *Context) bool {
 	found := false
 	for _, name := range HelpFlag.Names() {
@@ -327,9 +338,9 @@ func checkCommandHelp(c *Context, name string) bool {
 	return false
 }
 
-func checkSubCommandHelp(c *Context) bool {
+func checkSubcommandHelp(c *Context) bool {
 	if c.Bool("h") || c.Bool("help") {
-		_ = ShowSubcommmandHelp(c)
+		_ = ShowSubcommandHelp(c)
 		return true
 	}
 

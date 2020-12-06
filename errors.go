@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-// OsExiter is the function used when the app exists. If not set defaults to os.Exit.
+// OsExiter is the function used when the app exits. If not set defaults to os.Exit.
 var OsExiter = os.Exit
 
 // ErrWriter is used to write errors to the user. This can be anything
@@ -43,7 +43,7 @@ func newMultiError(err ...error) MultiError {
 
 type multiError []error
 
-// Error implements the error interface
+// Error implements the error interface.
 func (m *multiError) Error() string {
 	errs := make([]string, len(*m))
 	for i, err := range *m {
@@ -67,7 +67,8 @@ type ErrorFormatter interface {
 	Format(s fmt.State, verb rune)
 }
 
-// ExitCoder is the interface checked by `App` and `Command` for a custom exit code
+// ExitCoder is the interface checked by `App` and `Command` for a custom exit
+// code
 type ExitCoder interface {
 	error
 	ExitCode() int
@@ -75,7 +76,7 @@ type ExitCoder interface {
 
 type exitError struct {
 	exitCode int
-	message interface{}
+	message  interface{}
 }
 
 // NewExitError makes a new *exitError
@@ -87,7 +88,7 @@ func NewExitError(message interface{}, exitCode int) ExitCoder {
 // HandleExitCoder
 func Exit(message interface{}, exitCode int) ExitCoder {
 	return &exitError{
-		message: message,
+		message:  message,
 		exitCode: exitCode,
 	}
 }
@@ -133,7 +134,7 @@ func handleMultiError(multiErr MultiError) int {
 	for _, merr := range multiErr.Errors() {
 		if multiErr2, ok := merr.(MultiError); ok {
 			code = handleMultiError(multiErr2)
-		} else {
+		} else if merr != nil {
 			fmt.Fprintln(ErrWriter, merr)
 			if exitErr, ok := merr.(ExitCoder); ok {
 				code = exitErr.ExitCode()

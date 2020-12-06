@@ -15,19 +15,22 @@
 package cli
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
 var (
 	changeLogURL            = "https://github.com/lack-io/cli/blob/master/docs/CHANGELOG.md"
-	appActionDeprecationURL = fmt.Sprintf("%s#deprecated-cli-app-action-sigature", changeLogURL)
-	contactSysadmin         = "This is an error in the application. Please contact the distributor of this application if this is not you."
+	appActionDeprecationURL = fmt.Sprintf("%s#deprecated-cli-app-action-signature", changeLogURL)
+	contactSysadmin         = "This is an error in the application.  Please contact the distributor of this application if this is not you."
 	errInvalidActionType    = NewExitError("ERROR invalid Action type. "+
-		fmt.Sprintf("Must be `func(*Context)` or `func(*Context) error). %s", contactSysadmin)+
+		fmt.Sprintf("Must be `func(*Context`)` or `func(*Context) error).  %s", contactSysadmin)+
 		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
 )
 
@@ -38,7 +41,7 @@ type App struct {
 	Name string
 	// Full name of command for help, defaults to Name
 	HelpName string
-	// Description of the program
+	// Description of the program.
 	Usage string
 	// Text to override the USAGE section of help
 	UsageText string
@@ -60,13 +63,13 @@ type App struct {
 	HideVersion bool
 	// categories contains the categorized commands and is populated on app startup
 	categories CommandCategories
-	// An action to execute when shell completion flag is set
-	BashComplete BashCompletionFunc
+	// An action to execute when the shell completion flag is set
+	BashComplete BashCompleteFunc
 	// An action to execute before any subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no subcommands are run
 	Before BeforeFunc
-	// An action to execute after an subcommands are run, but after the subcommand has finished
-	// It is run even if Action panics
+	// An action to execute after any subcommands are run, but after the subcommand has finished
+	// It is run even if Action() panics
 	After AfterFunc
 	// The action to execute when no subcommands are specified
 	Action ActionFunc
@@ -76,7 +79,7 @@ type App struct {
 	OnUsageError OnUsageErrorFunc
 	// Compilation date
 	Compiled time.Time
-	// List of all authors two contributed
+	// List of all authors who contributed
 	Authors []*Author
 	// Copyright of the binary if any
 	Copyright string
@@ -86,10 +89,10 @@ type App struct {
 	ErrWriter io.Writer
 	// Execute this function to handle ExitErrors. If not provided, HandleExitCoder is provided to
 	// function as a default, so this is optional.
-	ExitErrHandler ExitErrHandleFunc
+	ExitErrHandler ExitErrHandlerFunc
 	// Other custom info
 	Metadata map[string]interface{}
-	// Carries a function which returns app specific into.
+	// Carries a function which returns app specific info.
 	ExtraInfo func() map[string]string
 	// CustomAppHelpTemplate the text template for app help topic.
 	// cli.go uses text/template to render templates. You can
@@ -104,7 +107,7 @@ type App struct {
 }
 
 // Tries to find out when this binary was compiled.
-// Returns ths current time if it fails to find it.
+// Returns the current time if it fails to find it.
 func compileTime() time.Time {
 	info, err := os.Stat(os.Args[0])
 	if err != nil {
@@ -113,7 +116,7 @@ func compileTime() time.Time {
 	return info.ModTime()
 }
 
-// NewApp creates a new cli Application with some reasonable defaults for Name.
+// NewApp creates a new cli Application with some reasonable defaults for Name,
 // Usage, Version and Action.
 func NewApp() *App {
 	return &App{
@@ -171,6 +174,7 @@ func (a *App) Setup() {
 	}
 
 	var newCommands []*Command
+
 	for _, c := range a.Commands {
 		if c.HelpName == "" {
 			c.HelpName = fmt.Sprintf("%s %s", a.HelpName, c.Name)
@@ -181,12 +185,344 @@ func (a *App) Setup() {
 
 	if a.Command(helpCommand.Name) == nil && !a.HideHelp {
 		a.appendCommand(helpCommand)
+
+		if HelpFlag != nil {
+			a.appendFlag(HelpFlag)
+		}
+	}
+
+	if !a.HideVersion {
+		a.appendFlag(VersionFlag)
+	}
+
+	a.categories = newCommandCategories()
+	for _, command := range a.Commands {
+		a.categories.AddCommand(command.Category, command)
+	}
+	sort.Sort(a.categories.(*commandCategories))
+
+	if a.Metadata == nil {
+		a.Metadata = make(map[string]interface{})
+	}
+
+	if a.Writer == nil {
+		a.Writer = os.Stdout
 	}
 }
 
-func (a *App) handleExitCoder(ctx *Context, err error) {
+func (a *App) newFlagSet() (*flag.FlagSet, error) {
+	return flagSet(a.Name, a.Flags)
+}
+
+func (a *App) useShortOptionHandling() bool {
+	return a.UseShortOptionHandling
+}
+
+// Run is the entry point to the cli app. Parses the arguments slice and routes
+// to the proper flag/args combination
+func (a *App) Run(arguments []string) (err error) {
+	return a.RunContext(context.Background(), arguments)
+}
+
+// RunContext is like Run except it takes a Context that will be
+// passed to its commands and sub-commands. Through this, you can
+// propagate timeouts and cancellation requests
+func (a *App) RunContext(ctx context.Context, arguments []string) (err error) {
+	a.Setup()
+
+	// handle the completion flag separately from the flagset since
+	// completion could be attempted after a flag, but before its value was put
+	// on the command line. this causes the flagset to interpret the completion
+	// flag name as the value of the flag before it which is undesirable
+	// note that we can only do this because the shell autocomplete function
+	// always appends the completion flag at the end of the command
+	shellComplete, arguments := checkShellCompleteFlag(a, arguments)
+
+	set, err := a.newFlagSet()
+	if err != nil {
+		return err
+	}
+
+	err = parseIter(set, a, arguments[1:], shellComplete)
+	nerr := normalizeFlags(a.Flags, set)
+	context := NewContext(a, set, &Context{Context: ctx})
+	if nerr != nil {
+		_, _ = fmt.Fprintln(a.Writer, nerr)
+		_ = ShowAppHelp(context)
+		return nerr
+	}
+	context.shellComplete = shellComplete
+
+	if checkCompletions(context) {
+		return nil
+	}
+
+	if err != nil {
+		if a.OnUsageError != nil {
+			err := a.OnUsageError(context, err, false)
+			a.handleExitCoder(context, err)
+			return err
+		}
+		_, _ = fmt.Fprintf(a.Writer, "%s %s\n\n", "Incorrect Usage.", err.Error())
+		_ = ShowAppHelp(context)
+		return err
+	}
+
+	if !a.HideHelp && checkHelp(context) {
+		_ = ShowAppHelp(context)
+		os.Exit(0)
+		return nil
+	}
+
+	if !a.HideVersion && checkVersion(context) {
+		ShowVersion(context)
+		os.Exit(0)
+		return nil
+	}
+
+	cerr := checkRequiredFlags(a.Flags, context)
+	if cerr != nil {
+		_ = ShowAppHelp(context)
+		return cerr
+	}
+
+	if a.After != nil {
+		defer func() {
+			if afterErr := a.After(context); afterErr != nil {
+				if err != nil {
+					err = newMultiError(err, afterErr)
+				} else {
+					err = afterErr
+				}
+			}
+		}()
+	}
+
+	if a.Before != nil {
+		beforeErr := a.Before(context)
+		if beforeErr != nil {
+			_, _ = fmt.Fprintf(a.Writer, "%v\n\n", beforeErr)
+			_ = ShowAppHelp(context)
+			a.handleExitCoder(context, beforeErr)
+			err = beforeErr
+			return err
+		}
+	}
+
+	args := context.Args()
+	if args.Present() {
+		name := args.First()
+		c := a.Command(name)
+		if c != nil {
+			return c.Run(context)
+		}
+	}
+
+	if a.Action == nil {
+		a.Action = helpCommand.Action
+	}
+
+	// Run default Action
+	err = a.Action(context)
+
+	a.handleExitCoder(context, err)
+	return err
+}
+
+// RunAndExitOnError calls .Run() and exits non-zero if an error was returned
+//
+// Deprecated: instead you should return an error that fulfills cli.ExitCoder
+// to cli.App.Run. This will cause the application to exit with the given eror
+// code in the cli.ExitCoder
+func (a *App) RunAndExitOnError() {
+	if err := a.Run(os.Args); err != nil {
+		_, _ = fmt.Fprintln(a.errWriter(), err)
+		OsExiter(1)
+	}
+}
+
+// RunAsSubcommand invokes the subcommand given the context, parses ctx.Args() to
+// generate command-specific flags
+func (a *App) RunAsSubcommand(ctx *Context) (err error) {
+	a.Setup()
+
+	// append help to commands
+	if len(a.Commands) > 0 {
+		if a.Command(helpCommand.Name) == nil && !a.HideHelp {
+			a.appendCommand(helpCommand)
+
+			if HelpFlag != nil {
+				a.appendFlag(HelpFlag)
+			}
+		}
+	}
+
+	var newCmds []*Command
+	for _, c := range a.Commands {
+		if c.HelpName == "" {
+			c.HelpName = fmt.Sprintf("%s %s", a.HelpName, c.Name)
+		}
+		newCmds = append(newCmds, c)
+	}
+	a.Commands = newCmds
+
+	set, err := a.newFlagSet()
+	if err != nil {
+		return err
+	}
+
+	err = parseIter(set, a, ctx.Args().Tail(), ctx.shellComplete)
+	nerr := normalizeFlags(a.Flags, set)
+	context := NewContext(a, set, ctx)
+
+	if nerr != nil {
+		_, _ = fmt.Fprintln(a.Writer, nerr)
+		_, _ = fmt.Fprintln(a.Writer)
+		if len(a.Commands) > 0 {
+			_ = ShowSubcommandHelp(context)
+		} else {
+			_ = ShowCommandHelp(ctx, context.Args().First())
+		}
+		return nerr
+	}
+
+	if checkCompletions(context) {
+		return nil
+	}
+
+	if err != nil {
+		if a.OnUsageError != nil {
+			err = a.OnUsageError(context, err, true)
+			a.handleExitCoder(context, err)
+			return err
+		}
+		_, _ = fmt.Fprintf(a.Writer, "%s %s\n\n", "Incorrect Usage.", err.Error())
+		_ = ShowSubcommandHelp(context)
+		return err
+	}
+
+	if len(a.Commands) > 0 {
+		if checkSubcommandHelp(context) {
+			return nil
+		}
+	} else {
+		if checkCommandHelp(ctx, context.Args().First()) {
+			return nil
+		}
+	}
+
+	cerr := checkRequiredFlags(a.Flags, context)
+	if cerr != nil {
+		_ = ShowSubcommandHelp(context)
+		return cerr
+	}
+
+	if a.After != nil {
+		defer func() {
+			afterErr := a.After(context)
+			if afterErr != nil {
+				a.handleExitCoder(context, err)
+				if err != nil {
+					err = newMultiError(err, afterErr)
+				} else {
+					err = afterErr
+				}
+			}
+		}()
+	}
+
+	if a.Before != nil {
+		beforeErr := a.Before(context)
+		if beforeErr != nil {
+			a.handleExitCoder(context, beforeErr)
+			err = beforeErr
+			return err
+		}
+	}
+
+	args := context.Args()
+	if args.Present() {
+		name := args.First()
+		c := a.Command(name)
+		if c != nil {
+			return c.Run(context)
+		}
+	}
+
+	// Run default Action
+	err = a.Action(context)
+
+	a.handleExitCoder(context, err)
+	return err
+}
+
+// Command returns the named command on App. Returns nil if the command does not exist
+func (a *App) Command(name string) *Command {
+	for _, c := range a.Commands {
+		if c.HasName(name) {
+			return c
+		}
+	}
+	return nil
+}
+
+// VisibleCategories returns a slice of categories and commands that are
+// Hidden=false
+func (a *App) VisibleCategories() []CommandCategory {
+	ret := []CommandCategory{}
+	for _, category := range a.categories.Categories() {
+		if visible := func() CommandCategory {
+			if len(category.VisibleCommands()) > 0 {
+				return category
+			}
+			return nil
+		}(); visible != nil {
+			ret = append(ret, visible)
+		}
+	}
+	return ret
+}
+
+// VisibleCommands returns a slice of the Commands with Hidden=false
+func (a *App) VisibleCommands() []*Command {
+	var ret []*Command
+	for _, command := range a.Commands {
+		if !command.Hidden {
+			ret = append(ret, command)
+		}
+	}
+	return ret
+}
+
+// VisibleFlags returns a slice of the Flags with Hidden=false
+func (a *App) VisibleFlags() []Flag {
+	return visibleFlags(a.Flags)
+}
+
+func (a *App) errWriter() io.Writer {
+	// When the app ErrWriter is nil use the package level one.
+	if a.ErrWriter == nil {
+		return ErrWriter
+	}
+
+	return a.ErrWriter
+}
+
+func (a *App) appendFlag(fl Flag) {
+	if !hasFlag(a.Flags, fl) {
+		a.Flags = append(a.Flags, fl)
+	}
+}
+
+func (a *App) appendCommand(c *Command) {
+	if !hasCommand(a.Commands, c) {
+		a.Commands = append(a.Commands, c)
+	}
+}
+
+func (a *App) handleExitCoder(context *Context, err error) {
 	if a.ExitErrHandler != nil {
-		a.ExitErrHandler(ctx, err)
+		a.ExitErrHandler(context, err)
 	} else {
 		HandleExitCoder(err)
 	}
@@ -217,9 +553,9 @@ func HandleAction(action interface{}, context *Context) (err error) {
 		return a(context)
 	case func(*Context) error:
 		return a(context)
-	case func(*Context):
+	case func(*Context): // deprecated function signature
 		a(context)
-		return
+		return nil
 	}
 
 	return errInvalidActionType

@@ -23,7 +23,7 @@ import (
 )
 
 // Context is a type that is passed through to
-// each Handler action is a cli application. Context
+// each Handler action in a cli application. Context
 // can be used to retrieve context-specific args and
 // parsed command-line options.
 type Context struct {
@@ -116,6 +116,7 @@ func (c *Context) Lineage() []*Context {
 	for cur := c; cur != nil; cur = cur.parentContext {
 		lineage = append(lineage, cur)
 	}
+
 	return lineage
 }
 
@@ -130,7 +131,7 @@ func (c *Context) Args() Args {
 	return &ret
 }
 
-// NArg returns the number of the command line arguments
+// NArg returns the number of the command line arguments.
 func (c *Context) NArg() int {
 	return c.Args().Len()
 }
@@ -148,13 +149,13 @@ func lookupFlag(name string, ctx *Context) Flag {
 				}
 			}
 		}
+	}
 
-		if ctx.App != nil {
-			for _, f := range ctx.App.Flags {
-				for _, n := range f.Names() {
-					if n == name {
-						return f
-					}
+	if ctx.App != nil {
+		for _, f := range ctx.App.Flags {
+			for _, n := range f.Names() {
+				if n == name {
+					return f
 				}
 			}
 		}
@@ -255,7 +256,7 @@ func (e *errRequiredFlags) getMissingFlags() []string {
 	return e.missingFlags
 }
 
-func checkRequiredFlags(flags []Flag, ctx *Context) requiredFlagsErr {
+func checkRequiredFlags(flags []Flag, context *Context) requiredFlagsErr {
 	var missingFlags []string
 	for _, f := range flags {
 		if rf, ok := f.(RequiredFlag); ok && rf.IsRequired() {
@@ -267,7 +268,7 @@ func checkRequiredFlags(flags []Flag, ctx *Context) requiredFlagsErr {
 					flagName = key
 				}
 
-				if ctx.IsSet(strings.TrimSpace(key)) {
+				if context.IsSet(strings.TrimSpace(key)) {
 					flagPresent = true
 				}
 			}

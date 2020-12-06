@@ -14,11 +14,9 @@
 
 package cli
 
-import (
-	"flag"
-)
+import "flag"
 
-// StringFlag is a flag with type bool
+// StringFlag is a flag with type string
 type StringFlag struct {
 	Name        string
 	Aliases     []string
@@ -27,6 +25,7 @@ type StringFlag struct {
 	FilePath    string
 	Required    bool
 	Hidden      bool
+	TakesFile   bool
 	Value       string
 	DefaultText string
 	Destination *string
@@ -54,9 +53,9 @@ func (f *StringFlag) IsRequired() bool {
 	return f.Required
 }
 
-// TakesValue returns true of the flag takes a value, otherwise flag
+// TakesValue returns true of the flag takes a value, otherwise false
 func (f *StringFlag) TakesValue() bool {
-	return false
+	return true
 }
 
 // GetUsage returns the usage string for the flag
@@ -67,7 +66,7 @@ func (f *StringFlag) GetUsage() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *StringFlag) GetValue() string {
-	return ""
+	return f.Value
 }
 
 // Apply populates the flag given the flag set and environment
