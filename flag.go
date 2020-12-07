@@ -27,8 +27,6 @@ import (
 	"time"
 )
 
-const defaultPlaceholder = "value"
-
 var (
 	slPfx = fmt.Sprintf("sl:::%d:::", time.Now().UTC().UnixNano())
 
@@ -296,7 +294,7 @@ func stringifyFlag(f Flag) string {
 	}
 
 	if needsPlaceholder && placeholder == "" {
-		placeholder = defaultPlaceholder
+		placeholder = fv.FieldByName("Value").Kind().String()
 	}
 
 	usageWithDefault := strings.TrimSpace(usage + defaultValueString)
@@ -313,7 +311,7 @@ func stringifyIntSliceFlag(f *IntSliceFlag) string {
 		}
 	}
 
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
+	return stringifySliceFlag(f.Usage, "[]int", f.Names(), defaultVals)
 }
 
 func stringifyInt64SliceFlag(f *Int64SliceFlag) string {
@@ -324,7 +322,7 @@ func stringifyInt64SliceFlag(f *Int64SliceFlag) string {
 		}
 	}
 
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
+	return stringifySliceFlag(f.Usage, "[]int64", f.Names(), defaultVals)
 }
 
 func stringifyFloat64SliceFlag(f *Float64SliceFlag) string {
@@ -336,7 +334,7 @@ func stringifyFloat64SliceFlag(f *Float64SliceFlag) string {
 		}
 	}
 
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
+	return stringifySliceFlag(f.Usage, "[]float64", f.Names(), defaultVals)
 }
 
 func stringifyStringSliceFlag(f *StringSliceFlag) string {
@@ -349,10 +347,10 @@ func stringifyStringSliceFlag(f *StringSliceFlag) string {
 		}
 	}
 
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
+	return stringifySliceFlag(f.Usage, "strings", f.Names(), defaultVals)
 }
 
-func stringifySliceFlag(usage string, names, defaultVals []string) string {
+func stringifySliceFlag(usage, defaultPlaceholder string, names, defaultVals []string) string {
 	placeholder, usage := unquoteUsage(usage)
 	if placeholder == "" {
 		placeholder = defaultPlaceholder
