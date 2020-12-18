@@ -52,6 +52,16 @@ func ExampleApp_Run() {
 	// Hello Jeremy
 }
 
+func ExampleApp_Run_commandLine() {
+	// set args for examples sake
+	cmd := CommandLine
+	cmd.BoolP("enable", "E", true, "bool test", "")
+
+	cmd.Run(os.Args)
+	// Output:
+	//
+}
+
 func ExampleApp_Run_subcommand() {
 	// set args for examples sake
 	os.Args = []string{"say", "hi", "english", "--name", "Jeremy"}
