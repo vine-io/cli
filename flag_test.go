@@ -752,6 +752,7 @@ func TestFloat64SliceFlagHelpOutput(t *testing.T) {
 		fl := Float64SliceFlag{Name: test.name, Aliases: test.aliases, Value: test.value}
 		output := fl.String()
 
+		t.Log(fl.Value.String())
 		if output != test.expected {
 			t.Errorf("%q does not match %q", output, test.expected)
 		}

@@ -131,12 +131,12 @@ func (a *App) BoolVarP(p *bool, name, alias string, value bool, usage, env strin
 // BoolVar defines a bool flag with specified name, default value, usage string and env string.
 // The argument p points to a bool variable in which to store the value of the flag.
 func BoolVar(p *bool, name string, value bool, usage, env string) {
-	CommandLine.boolVar(p, name, "", value, usage, env)
+	CommandLine.BoolVar(p, name, value, usage, env)
 }
 
 // BoolVarP is like BoolVar, but accepts a shorthand letter that can be used after a single dash.
 func BoolVarP(p *bool, name, alias string, value bool, usage, env string) {
-	CommandLine.boolVar(p, name, alias, value, usage, env)
+	CommandLine.BoolVarP(p, name, alias, value, usage, env)
 }
 
 // Bool defines a bool flag with specified name, default value, usage string and env string.

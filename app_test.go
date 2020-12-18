@@ -54,12 +54,34 @@ func ExampleApp_Run() {
 
 func ExampleApp_Run_commandLine() {
 	// set args for examples sake
+	os.Args = []string{"--enable", "--floatSlice", "[1.0,2.0,3.0]"}
+
 	cmd := CommandLine
-	cmd.BoolP("enable", "E", true, "bool test", "")
+	cmd.StringP("string", "", "hello", "string", "")
+	cmd.BoolP("enable", "E", true, "bool", "")
+	cmd.Float64P("float", "", 2.0, "float64", "")
+	fs := []float64{1.0, 2.0}
+	cmd.Float64SliceVar(&fs, "floatSlice", fs, "float64 slice", "")
+	cmd.IntP("int", "", 2, "int", "")
+	cmd.Int64P("int64", "", 23, "int64", "")
+	cmd.Action = func(ctx *Context) error {
+		fmt.Println("--string =", ctx.String("string"))
+		fmt.Println("--enable =", ctx.Bool("enable"))
+		fmt.Println("--float =", ctx.Float64("float"))
+		fmt.Println("--floatSlice =", fs)
+		fmt.Println("--int =", ctx.Int("int"))
+		fmt.Println("--int64 =", ctx.Int64("int64"))
+		return nil
+	}
 
 	cmd.Run(os.Args)
 	// Output:
-	//
+	// --string = hello
+	// --enable = true
+	// --float = 2
+	// --floatSlice = [1 2 3]
+	// --int = 2
+	// --int64 = 23
 }
 
 func ExampleApp_Run_subcommand() {
