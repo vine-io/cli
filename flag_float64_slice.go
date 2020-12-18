@@ -62,7 +62,7 @@ func (f *Float64Slice) Set(value string) error {
 		return err
 	}
 
-	*f.val = tmp
+	*f.val = append(*f.val, tmp...)
 	return nil
 }
 
@@ -76,7 +76,7 @@ func float64SliceConv(val string) ([]float64, error) {
 	out := make([]float64, len(ss))
 	for i, d := range ss {
 		var err error
-		out[i], err = strconv.ParseFloat(d, 64)
+		out[i], err = strconv.ParseFloat(strings.TrimSpace(d), 64)
 		if err != nil {
 			return nil, err
 		}
@@ -105,6 +105,9 @@ func (f *Float64Slice) Serialize() string {
 
 // Value returns the slice of float64s set by this flag
 func (f *Float64Slice) Value() []float64 {
+	if f.val == nil {
+		return []float64{}
+	}
 	return *f.val
 }
 

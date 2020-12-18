@@ -810,7 +810,7 @@ func TestApp_ParseSliceFlags(t *testing.T) {
 		},
 	}
 
-	_ = app.Run([]string{"", "cmd", "-p", "22", "-p", "80", "-ip", "8.8.8.8", "-ip", "8.8.4.4"})
+	_ = app.Run([]string{"", "cmd", "-p", "22,80", "-ip", "8.8.8.8,8.8.4.4"})
 
 	IntsEquals := func(a, b []int) bool {
 		if len(a) != len(b) {

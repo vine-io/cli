@@ -56,9 +56,28 @@ func (s *StringSlice) Set(value string) error {
 		return nil
 	}
 
-	*s.value = append(*s.value, value)
+	tmp, err := stringSliceConv(value)
+	if err != nil {
+		return err
+	}
+
+	*s.value = append(*s.value, tmp...)
 
 	return nil
+}
+
+func stringSliceConv(val string) ([]string, error) {
+	val = strings.Trim(val, "[]")
+	// Empty string would cause a slice with one (empty) entry
+	if len(val) == 0 {
+		return []string{}, nil
+	}
+	ss := strings.Split(val, ",")
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = strings.TrimSpace(s)
+	}
+	return out, nil
 }
 
 // String returns a readable representation of this value (for usage defaults)
@@ -68,7 +87,7 @@ func (s *StringSlice) String() string {
 	}
 	out := make([]string, len(*s.value))
 	for i, s := range *s.value {
-		out[i] = s
+		out[i] = strings.TrimSpace(s)
 	}
 	return "[" + strings.Join(out, ",") + "]"
 }
@@ -81,6 +100,9 @@ func (s *StringSlice) Serialize() string {
 
 // Value returns the slice of strings set by this flag
 func (s *StringSlice) Value() []string {
+	if s.value == nil {
+		return []string{}
+	}
 	return *s.value
 }
 

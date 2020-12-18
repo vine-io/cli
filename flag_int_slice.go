@@ -72,7 +72,7 @@ func (i *IntSlice) Set(value string) error {
 	if err != nil {
 		return err
 	}
-	*i.value = tmp
+	*i.value = append(*i.value, tmp...)
 
 	return nil
 }
@@ -87,7 +87,7 @@ func intSliceConv(val string) ([]int, error) {
 	out := make([]int, len(ss))
 	for i, d := range ss {
 		var err error
-		i64, err := strconv.ParseInt(d, 10, 64)
+		i64, err := strconv.ParseInt(strings.TrimSpace(d), 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -116,6 +116,9 @@ func (i *IntSlice) Serialize() string {
 
 // Value returns the slice of ints set by this flag
 func (i *IntSlice) Value() []int {
+	if i.value == nil {
+		return []int{}
+	}
 	return *i.value
 }
 
