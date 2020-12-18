@@ -40,6 +40,7 @@ var CommandLine *App
 func initCommandLine() {
 	CommandLine = NewApp()
 	CommandLine.CustomAppHelpTemplate = CommandLineHelpTemplate
+	CommandLine.Action = func(ctx *Context) error { return nil }
 	CommandLine.HideVersion = true
 }
 

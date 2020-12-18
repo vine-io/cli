@@ -74,7 +74,7 @@ func ExampleApp_Run_commandLine() {
 		return nil
 	}
 
-	cmd.Run(os.Args)
+	cmd.RunAndExitOnError()
 	// Output:
 	// --string = hello
 	// --enable = true
