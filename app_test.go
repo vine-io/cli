@@ -2178,3 +2178,27 @@ func newTestApp() *App {
 	a.Writer = ioutil.Discard
 	return a
 }
+
+func TestDefaultApp(t *testing.T) {
+	app := CommandLine
+
+	ip := []string{""}
+	p := "1"
+	app.StringSliceVar(&ip, "ips", ip, "list of ip", "")
+	app.Action = func(ctx *Context) error {
+		fmt.Println("ips: ", ctx.String("ips"))
+		fmt.Println("p: ", ctx.String("p"))
+		return nil
+	}
+
+	app.Flags = append(app.Flags, &StringFlag{
+		Name:        "p",
+		Value:       "123",
+		HasBeenSet:  false,
+		Destination: &p,
+	})
+
+	app.Run([]string{"", "--ips=backup", "--p=111,222"})
+
+	t.Log(ip, p)
+}
