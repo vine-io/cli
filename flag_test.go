@@ -516,8 +516,8 @@ var uint64FlagTests = []struct {
 	name     string
 	expected string
 }{
-	{"gerfs", "--gerfs value\t(default: 8589934582)"},
-	{"G", "-G value\t(default: 8589934582)"},
+	{"gerfs", "--gerfs uint64\t(default: 8589934582)"},
+	{"G", "-G uint64\t(default: 8589934582)"},
 }
 
 func TestUint64FlagHelpOutput(t *testing.T) {
@@ -605,7 +605,7 @@ var intSliceFlagTests = []struct {
 }{
 	{"heads", nil, NewIntSlice(), "--heads []int\t"},
 	{"H", nil, NewIntSlice(), "-H []int\t"},
-	{"H", []string{"heads"}, NewIntSlice(9, 3), "-H []int, --heads value\t(default: 9, 3)"},
+	{"H", []string{"heads"}, NewIntSlice(9, 3), "-H []int, --heads []int\t(default: 9, 3)"},
 }
 
 func TestIntSliceFlagHelpOutput(t *testing.T) {

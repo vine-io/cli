@@ -137,15 +137,15 @@ func Test_helpCommand_Action_ErrorIfNoTopic(t *testing.T) {
 
 	c := NewContext(app, set, nil)
 
-	err := helpCommand.Action(c)
+	e := helpCommand.Action(c)
 
-	if err == nil {
+	if e == nil {
 		t.Fatalf("expected error from helpCommand.Action(), but got nil")
 	}
 
-	exitErr, ok := err.(*exitError)
+	exitErr, ok := e.(*exitError)
 	if !ok {
-		t.Fatalf("expected *exitError from helpCommand.Action(), but instead got: %v", err.Error())
+		t.Fatalf("expected *exitError from helpCommand.Action(), but instead got: %v", e.Error())
 	}
 
 	if !strings.HasPrefix(exitErr.Error(), "No help topic for") {
