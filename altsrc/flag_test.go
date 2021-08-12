@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 type testApplyInputSource struct {

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 // MapInputSource implements InputSourceContext to return

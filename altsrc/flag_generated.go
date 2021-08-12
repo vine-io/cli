@@ -19,7 +19,7 @@ package altsrc
 import (
 	"flag"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 // BoolFlag is the flag type that wraps cli.BoolFlag to allow

@@ -25,7 +25,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 type yamlSourceContext struct {

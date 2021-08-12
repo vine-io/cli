@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 // FlagInputSourceExtension is an extension interface of cli.Flag that

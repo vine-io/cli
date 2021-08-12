@@ -20,7 +20,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 func TestCommandYamlFileTest(t *testing.T) {

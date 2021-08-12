@@ -17,7 +17,7 @@ package altsrc
 import (
 	"time"
 
-	"github.com/lack-io/cli"
+	"github.com/vine-io/cli"
 )
 
 // InputSourceContext is an interface used to allow
